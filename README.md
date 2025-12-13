@@ -100,7 +100,7 @@ Go to your project folder:
 PS D:\KAIM\weak-4\credit-risk-model>
 
 STEP 1 — Create a Virtual Environment
-python -m venv .venv
+py -3.11 -m venv .venv
 
 Activate it:
 .venv\Scripts\activate
