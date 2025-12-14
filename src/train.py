@@ -14,130 +14,81 @@ from sklearn.pipeline import Pipeline
 
 from src.data_processing import build_feature_pipeline
 
-# ------------------------------------------------
-# Load processed data with proxy label
-# ------------------------------------------------
+
 def load_data(path="data/processed/data_with_labels.csv"):
     df = pd.read_csv(path)
-    
-    # target
     y = df["is_high_risk"]
+    X = df.drop(columns=["is_high_risk"])
 
-    # drop label
-    df = df.drop(columns=["is_high_risk"])
-
-    # build pipeline
     pipeline = build_feature_pipeline()
-
-    # transform raw data → engineered features
-    X = pipeline.fit_transform(df)
+    X = pipeline.fit_transform(X)
 
     return X, y
 
-# ------------------------------------------------
-# Train/Test Split
-# ------------------------------------------------
-def split_data(test_size=0.2, random_state=42):
+
+def split_data():
     X, y = load_data()
-    return train_test_split(X, y, test_size=test_size, random_state=random_state)
+    return train_test_split(X, y, test_size=0.2, random_state=42)
 
 
-# ------------------------------------------------
-# Define models to test
-# ------------------------------------------------
 def get_models():
     return {
-        "LogisticRegression": LogisticRegression(max_iter=500),
-        "RandomForest": RandomForestClassifier(),
-        "XGBoost": XGBClassifier(eval_metric="logloss")
+        "LR": LogisticRegression(max_iter=500),
+        "RF": RandomForestClassifier(),
+        "XGB": XGBClassifier(eval_metric="logloss")
     }
 
 
-# ------------------------------------------------
-# Hyperparameter grids
-# ------------------------------------------------
-def get_param_grid():
-    return {
-        "LogisticRegression": {
-            "clf__C": [0.1, 1, 10]
-        },
-        "RandomForest": {
-            "clf__n_estimators": [100, 200],
-            "clf__max_depth": [5, 10, None]
-        },
-        "XGBoost": {
-            "clf__n_estimators": [50, 100, 150],
-            "clf__max_depth": [3, 5, 7]
-        }
-    }
-
-
-# ------------------------------------------------
-# Model Evaluation
-# ------------------------------------------------
-def evaluate_model(y_true, y_pred, y_prob):
+def evaluate(y_true, y_pred, y_prob):
     return {
         "accuracy": accuracy_score(y_true, y_pred),
         "precision": precision_score(y_true, y_pred),
         "recall": recall_score(y_true, y_pred),
         "f1": f1_score(y_true, y_pred),
-        "roc_auc": roc_auc_score(y_true, y_prob),
+        "roc_auc": roc_auc_score(y_true, y_prob)
     }
 
 
-# ------------------------------------------------
-# Train all models + Log to MLflow
-# ------------------------------------------------
 def train_models():
     mlflow.set_experiment("credit-risk-task5")
 
     X_train, X_test, y_train, y_test = split_data()
     models = get_models()
-    param_grid = get_param_grid()
 
     best_model = None
+    best_name = None
     best_score = 0
 
-    for model_name, model in models.items():
+    for name, model in models.items():
 
-        pipeline = Pipeline(steps=[
+        pipe = Pipeline([
             ("scaler", StandardScaler()),
             ("clf", model)
         ])
 
-        search = RandomizedSearchCV(
-            pipeline,
-            param_distributions=param_grid[model_name],
-            n_iter=3,
-            scoring="f1",
-            cv=3,
-            random_state=42
-        )
+        with mlflow.start_run(run_name=name):
+            pipe.fit(X_train, y_train)
 
-        with mlflow.start_run(run_name=model_name):
+            y_pred = pipe.predict(X_test)
+            y_prob = pipe.predict_proba(X_test)[:, 1]
 
-            search.fit(X_train, y_train)
+            scores = evaluate(y_test, y_pred, y_prob)
+            mlflow.log_metrics(scores)
 
-            best = search.best_estimator_
-            y_pred = best.predict(X_test)
-            y_prob = best.predict_proba(X_test)[:, 1]
+            print(f"\n{name}: {scores}")
 
-            metrics = evaluate_model(y_test, y_pred, y_prob)
+            if scores["f1"] > best_score:
+                best_score = scores["f1"]
+                best_model = pipe
+                best_name = name
 
-            # Log experiment details
-            mlflow.log_params(search.best_params_)
-            mlflow.log_metrics(metrics)
-            mlflow.sklearn.log_model(best, f"{model_name}_model")
+    # FORCE SAVE
+    print(f"\nBest model = {best_name}, F1 = {best_score}")
 
-            print(f"\n{model_name} scores:", metrics)
+    os.makedirs("models", exist_ok=True)
+    mlflow.sklearn.save_model(best_model, "models/best_model")
 
-            if metrics["f1"] > best_score:
-                best_score = metrics["f1"]
-                best_model = best
-
-    # Save best model
-    mlflow.sklearn.save_model(best_model, "../models/best_model")
-    print(f"\nBest model saved with F1 = {best_score}")
+    print("\nSaved best model to models/best_model")
 
 
 if __name__ == "__main__":
