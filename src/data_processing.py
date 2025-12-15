@@ -100,10 +100,12 @@ def build_feature_pipeline():
         "ProductCategory", "ChannelId", "PricingStrategy"
     ]
 
-    numeric_transformer = Pipeline(steps=[
-        ("scaler", StandardScaler())
-    ])
+    from sklearn.impute import SimpleImputer
 
+    numeric_transformer = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler())
+    ])
     categorical_transformer = Pipeline(steps=[
         ("labelencoder", LabelEncoderWrapper())
     ])
