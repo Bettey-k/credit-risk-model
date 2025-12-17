@@ -10,4 +10,4 @@ uvicorn
 xgboost
 lightgbm
 xverse
-pyarrow
+pyarroW
