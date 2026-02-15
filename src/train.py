@@ -1,6 +1,5 @@
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+import sys
+import os
 import pandas as pd
 import mlflow
 import mlflow.sklearn
@@ -17,6 +16,8 @@ from sklearn.pipeline import Pipeline
 
 from src.data_processing import build_feature_pipeline
 
+# After ALL imports → now modify sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # ---------------------------------------------------------
 # Load and Process Data
