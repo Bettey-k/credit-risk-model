@@ -62,7 +62,6 @@ def load_data(path="data/processed/data_with_labels.csv"):
     return X, y
 
 
-
 # ---------------------------------------------------------
 def split_data():
     X, y = load_data()
