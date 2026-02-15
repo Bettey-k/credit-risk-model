@@ -1,21 +1,19 @@
-import sys
 import os
+import sys
 
-# Add project root so Python can find src/
+from fastapi import FastAPI
+import pandas as pd
+import mlflow.pyfunc
+
+from src.api.pydantic_models import CustomerFeatures, PredictionResponse
+
+
+# Fix Python import path (must come AFTER imports according to flake8)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from fastapi import FastAPI
-from src.api.pydantic_models import CustomerFeatures, PredictionResponse
 
-
-import mlflow.pyfunc
-from fastapi import FastAPI
-from src.api.pydantic_models import CustomerFeatures, PredictionResponse
-import pandas as pd
-import os
-
-# Load MLflow best model
-MODEL_PATH = "models/best_model"
+# Load MLflow model
+MODEL_PATH = os.path.join("models", "best_model")
 model = mlflow.pyfunc.load_model(MODEL_PATH)
 
 app = FastAPI(title="Credit Risk Prediction API")
@@ -28,17 +26,20 @@ def root():
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict_risk(payload: CustomerFeatures):
+    """
+    Receives customer features, predicts probability of high risk.
+    """
 
-    # Convert input to dataframe
-    data = pd.DataFrame([payload.dict()])
+    # Convert input Pydantic model → DataFrame
+    data = pd.DataFrame([payload.model_dump()])
 
-    # Predict probability
-    proba = model.predict(data)[0]
+    # Model outputs probability directly (because MLflow pyfunc)
+    proba = float(model.predict(data)[0])
 
-    # binary classification with threshold 0.5
+    # Classification threshold
     label = 1 if proba >= 0.5 else 0
 
     return PredictionResponse(
-        risk_probability=float(proba),
+        probability=proba,
         is_high_risk=label
     )
