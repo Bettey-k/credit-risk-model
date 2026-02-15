@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+
 
 class CustomerFeatures(BaseModel):
     Amount: float
@@ -14,6 +14,7 @@ class CustomerFeatures(BaseModel):
     PricingStrategy: int
     CustomerId: int
 
+
 class PredictionResponse(BaseModel):
-    risk_probability: float
+    probability: float
     is_high_risk: int
